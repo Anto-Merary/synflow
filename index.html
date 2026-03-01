@@ -133,13 +133,22 @@
             }
         }
 
-        /* Utility for eyebrow text */
         .eyebrow {
             font-family: 'Inter', sans-serif;
             text-transform: uppercase;
             letter-spacing: 0.15em;
             font-size: 0.75rem;
             font-weight: 600;
+        }
+
+        /* Force hide default cursor across the entire page */
+        html,
+        body,
+        *,
+        a,
+        button,
+        iframe {
+            cursor: none !important;
         }
     </style>
 </head>
@@ -169,15 +178,16 @@
     </div>
 
     <!-- Custom Smooth Cursor -->
-    <div id="custom-cursor"
-        class="fixed pointer-events-none z-[9999] hidden md:flex items-center justify-center transition-transform duration-100"
-        style="left: 0; top: 0; margin-left: -12px; margin-top: -12px; transform-origin: center;">
-        <svg width="28" height="28" viewBox="0 0 24 24" fill="#000000" stroke="#FFFFFF" stroke-width="1.5"
-            stroke-linejoin="round" class="drop-shadow-sm pointer-events-none">
-            <path class="cursor-path transition-colors duration-200"
-                d="M19.503 9.97c1.204.489 1.112 2.224-.137 2.583l-6.306 1.813l-2.88 5.895c-.57 1.168-2.295.957-2.568-.314L4.677 6.257A1.369 1.369 0 0 1 6.53 4.7l12.973 5.27Z"
-                clip-rule="evenodd"></path>
-        </svg>
+    <div id="custom-cursor" class="fixed pointer-events-none z-[9999] hidden md:block"
+        style="left: 0; top: 0; transform: translate3d(0px, 0px, 0px); margin-left: -5px; margin-top: -6px;">
+        <div id="cursor-graphic" class="transition-transform duration-200" style="transform-origin: 5px 6px;">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="#000000" stroke="#FFFFFF" stroke-width="1.5"
+                stroke-linejoin="round" class="drop-shadow-sm pointer-events-none">
+                <path class="cursor-path transition-colors duration-200"
+                    d="M19.503 9.97c1.204.489 1.112 2.224-.137 2.583l-6.306 1.813l-2.88 5.895c-.57 1.168-2.295.957-2.568-.314L4.677 6.257A1.369 1.369 0 0 1 6.53 4.7l12.973 5.27Z"
+                    clip-rule="evenodd"></path>
+            </svg>
+        </div>
     </div>
 
     <!-- Navigation -->
@@ -884,6 +894,19 @@
 
     <!-- Scripts for Animations & Interactions -->
     <script>
+        // Initialize Lucide Icons
+        lucide.createIcons();
+
+        // --- Lenis Smooth Scroll ---
+        const lenis = new Lenis({
+            autoRaf: true,
+            smoothWheel: true,
+            syncTouch: true,
+            lerp: 0.08,
+        });
+
+        // Initially halt smooth scroll while loading
+        lenis.stop();
         // --- Preloader Logic ---
         document.addEventListener("DOMContentLoaded", () => {
             const counter = document.getElementById('loader-counter');
@@ -920,6 +943,11 @@
                     setTimeout(() => {
                         preloader.classList.add('-translate-y-full');
                         bodyContainer.classList.remove('overflow-hidden');
+
+                        // Restart scrolling and notify Lenis of size changes
+                        lenis.resize();
+                        lenis.start();
+
                         setTimeout(() => {
                             preloader.style.display = 'none';
                         }, 1200); // 1200ms matches css duration
@@ -1100,51 +1128,51 @@
             setTimeout(roam, Math.random() * 1000 + 500);
         });
 
-        // --- Lenis Smooth Scroll ---
-        const lenis = new Lenis({
-            autoRaf: true,
-            smoothWheel: true,
-            syncTouch: true,
-            lerp: 0.08,
-        });
-
         // --- Custom Smooth Cursor ---
         const customCursor = document.getElementById('custom-cursor');
+        const graphic = document.getElementById('cursor-graphic');
         let mouseX = window.innerWidth / 2;
         let mouseY = window.innerHeight / 2;
         let cursorX = mouseX;
         let cursorY = mouseY;
+        let cursorScale = 1;
+        let cursorRotate = 0;
 
         document.addEventListener('mousemove', (e) => {
             mouseX = e.clientX;
             mouseY = e.clientY;
 
             // Hover effect on interactables
-            const cursorPath = customCursor.querySelector('.cursor-path');
-            if (e.target.closest('a') || e.target.closest('button') || e.target.closest('.group')) {
-                customCursor.style.transform = `scale(1.15) rotate(-3deg)`;
+            const cursorPath = customCursor ? customCursor.querySelector('.cursor-path') : null;
+            if (e.target.closest('a') || e.target.closest('button') || e.target.closest('.group') || e.target.closest('.cursor-pointer')) {
+                cursorScale = 1.15;
+                cursorRotate = -3;
                 if (cursorPath) cursorPath.setAttribute('fill', '#C25E3E');
             } else {
-                customCursor.style.transform = `scale(1) rotate(0deg)`;
+                cursorScale = 1;
+                cursorRotate = 0;
                 if (cursorPath) cursorPath.setAttribute('fill', '#000000');
             }
         });
 
         function animateCursor() {
+            // Apply easing to coordinates
             cursorX += (mouseX - cursorX) * 0.4;
             cursorY += (mouseY - cursorY) * 0.4;
 
             if (customCursor) {
-                customCursor.style.left = cursorX + 'px';
-                customCursor.style.top = cursorY + 'px';
+                // Apply layout translation to outer shell via translate3d for GPU acceleration (avoids transition conflicts)
+                customCursor.style.transform = `translate3d(${cursorX}px, ${cursorY}px, 0)`;
+                // Apply scale and rotate to inner graphic via CSS transition classes
+                if (graphic) graphic.style.transform = `scale(${cursorScale}) rotate(${cursorRotate}deg)`;
             }
             requestAnimationFrame(animateCursor);
         }
         animateCursor();
 
         // Ensure cursors hide when leaving window
-        document.addEventListener('mouseleave', () => customCursor.style.opacity = '0');
-        document.addEventListener('mouseenter', () => customCursor.style.opacity = '1');
+        document.addEventListener('mouseleave', () => { if (customCursor) customCursor.style.opacity = '0'; });
+        document.addEventListener('mouseenter', () => { if (customCursor) customCursor.style.opacity = '1'; });
 
     </script>
 </body>
